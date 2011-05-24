@@ -857,14 +857,8 @@ sub getSimilarArtists {
 	my $limit = shift;
 	$artist =~ s/^\s*//;
 	$artist =~ s/\s*$//;
-	# these are ordered and used to sign the WS auth key in the next step
-	my %rsubparams;
-	$rsubparams{ 'api_key' } = $api_key;
-	$rsubparams{ 'method' } = $method;
-	$rsubparams{ 'limit' } = $limit;
 
 	# construct encoded api sig and then full url
-	my $enc_api_sig = sigConstruct0r(\%rsubparams);
 	my $req = "$rooturl" . "?" . "method=$method&artist=$artist&api_key=$api_key&limit=$limit";
 
 	my $client = REST::Client->new();
@@ -884,18 +878,36 @@ sub getSimilarArtists {
 	return @simartists;
 }
 
-sub sigConstruct0r {
-       my $api_sig;
-       my %subparams = %{$_[0]};
-       foreach my $key (sort (keys(%subparams))) {
-               $api_sig .= "$key" . "$subparams{$key}";
-       }
-       #print "APISIG = $api_sig\n";
-       my $enc_api_sig = md5_hex("$api_sig");
-       return $enc_api_sig;
+sub getArtistInfo {
+ 	my $method = 'artist.getInfo';
+        my $artist = shift;
+        my $limit = shift;
+        $artist =~ s/^\s*//;
+        $artist =~ s/\s*$//;
+        # these are ordered and used to sign the WS auth key in the next step
+
+        my $req = "$rooturl" . "?" . "method=$method&artist=$artist&api_key=$api_key";
+
+        my $client = REST::Client->new();
+        $client->GET("$req");
+        my $recz = $client->responseContent();
+
+        my $xz = XML::Simple->new;
+        my $xrecz = $xz->XMLin($recz);
+
+        my @simartists;
+        #foreach my $rec (keys %{$xrecz->{recommendations}->{artist}}) {
+        foreach my $key (@{$xrecz->{similarartists}->{artist}}) {
+                next if uc($key) eq uc($artist);
+                my $simart = $key->{name};
+                push (@simartists,$simart);
+        }
+        return @simartists;
 }
 
-# Eliminate some pesky warnings.
+
+
+# Eliminate some pesky warnings
 #
 sub DESTROY {}
 
